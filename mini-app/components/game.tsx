@@ -21,7 +21,7 @@ const BLOCK_SPAWN_INTERVAL = 1500;
 const ENEMY_WIDTH = 40;
 const ENEMY_HEIGHT = 20;
 const ENEMY_SPEED = 2;
-const ENEMY_SPAWN_INTERVAL = 1000;
+const ENEMY_SPAWN_INTERVAL = 500;
 
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,6 +51,20 @@ export default function Game() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [playerX, gameOver]);
+
+  // Mobile controls
+  const handleMoveLeft = () => {
+    setPlayerX((prev) => Math.max(prev - PLAYER_SPEED, 0));
+  };
+  const handleMoveRight = () => {
+    setPlayerX((prev) => Math.min(prev + PLAYER_SPEED, CANVAS_WIDTH - PLAYER_WIDTH));
+  };
+  const handleShoot = () => {
+    setBullets((prev) => [
+      ...prev,
+      { x: playerX + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2, y: CANVAS_HEIGHT - PLAYER_HEIGHT - BULLET_HEIGHT },
+    ]);
+  };
 
   // Game loop
   useEffect(() => {
@@ -200,14 +214,34 @@ export default function Game() {
   };
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center relative">
       <canvas
         ref={canvasRef}
         width={CANVAS_WIDTH}
         height={CANVAS_HEIGHT}
-        className="border border-gray-300 bg-blue-200"
+        className="border border-gray-300 bg-blue-200 w-full h-auto"
       />
       <div className="absolute top-2 left-2 text-sm text-white bg-black bg-opacity-50 p-2 rounded">Use ←/→ to move, Space to shoot</div>
+      <div className="absolute bottom-4 flex space-x-4">
+        <button
+          onClick={handleMoveLeft}
+          className="px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Left
+        </button>
+        <button
+          onClick={handleShoot}
+          className="px-4 py-2 bg-green-500 text-white rounded"
+        >
+          Shoot
+        </button>
+        <button
+          onClick={handleMoveRight}
+          className="px-4 py-2 bg-blue-500 text-white rounded"
+        >
+          Right
+        </button>
+      </div>
       <p className="mt-4 text-lg">Score: {score}</p>
       {gameOver && (
         <button
