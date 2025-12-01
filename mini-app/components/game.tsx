@@ -44,7 +44,7 @@ export default function Game() {
       window.removeEventListener("keydown", handleKey);
       canvas.removeEventListener("click", handleClick);
     };
-  }, [gameOver]);
+  }, [handleJump, gameOver]);
 
   // Game loop
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function Game() {
         const height = Math.random() * (canvas.height - OBSTACLE_GAP - 100) + 50;
         setObstacles((prev) => [
           ...prev,
-          { x: canvas.width, height },
+          { x: canvas.width, height, passed: false },
         ]);
       }
 
@@ -143,7 +143,7 @@ export default function Game() {
     animationFrameId = requestAnimationFrame(update);
 
     return () => cancelAnimationFrame(animationFrameId);
-  }, [birdVelocity, obstacles, score, gameOver]);
+  }, [birdVelocity, obstacles, score, gameOver, birdY]);
 
   const rectIntersect = (
     a: { x: number; y: number; width: number; height: number },
