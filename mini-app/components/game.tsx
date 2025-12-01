@@ -21,7 +21,7 @@ const BLOCK_SPAWN_INTERVAL = 1500;
 const ENEMY_WIDTH = 40;
 const ENEMY_HEIGHT = 20;
 const ENEMY_SPEED = 2;
-const ENEMY_SPAWN_INTERVAL = 2000;
+const ENEMY_SPAWN_INTERVAL = 1000;
 
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
