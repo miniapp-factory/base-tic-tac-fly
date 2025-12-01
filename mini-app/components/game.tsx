@@ -2,72 +2,175 @@
 
 import { useEffect, useRef, useState } from "react";
 
+const CANVAS_WIDTH = 400;
+const CANVAS_HEIGHT = 600;
+
 const PLAYER_WIDTH = 40;
 const PLAYER_HEIGHT = 20;
-const PLAYER_X = 180; // center for 400 width
-const PLAYER_Y = 580;
+const PLAYER_SPEED = 5;
+
+const BULLET_WIDTH = 4;
+const BULLET_HEIGHT = 10;
+const BULLET_SPEED = 7;
+
+const BLOCK_WIDTH = 40;
+const BLOCK_HEIGHT = 20;
+const BLOCK_SPEED = 2;
+const BLOCK_SPAWN_INTERVAL = 1500;
 
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [playerX, setPlayerX] = useState((CANVAS_WIDTH - PLAYER_WIDTH) / 2);
+  const [bullets, setBullets] = useState<{ x: number; y: number }[]>([]);
+  const [blocks, setBlocks] = useState<{ x: number; y: number }[]>([]);
   const [score, setScore] = useState(0);
-  const [playerX, setPlayerX] = useState(0);
+  const [gameOver, setGameOver] = useState(false);
 
+  // Handle key events
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      setPlayerX((canvas.width - PLAYER_WIDTH) / 2);
-    }
-  }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const handleClick = (e: MouseEvent) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      if (
-        x >= playerX &&
-        x <= playerX + PLAYER_WIDTH &&
-        y >= PLAYER_Y &&
-        y <= PLAYER_Y + PLAYER_HEIGHT
-      ) {
-        setScore((s) => s + 1);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (gameOver) return;
+      if (e.code === "ArrowLeft") {
+        setPlayerX((prev) => Math.max(prev - PLAYER_SPEED, 0));
+      } else if (e.code === "ArrowRight") {
+        setPlayerX((prev) => Math.min(prev + PLAYER_SPEED, CANVAS_WIDTH - PLAYER_WIDTH));
+      } else if (e.code === "Space") {
+        // shoot
+        setBullets((prev) => [
+          ...prev,
+          { x: playerX + PLAYER_WIDTH / 2 - BULLET_WIDTH / 2, y: CANVAS_HEIGHT - PLAYER_HEIGHT - BULLET_HEIGHT },
+        ]);
       }
     };
-    canvas.addEventListener("click", handleClick);
-    return () => canvas.removeEventListener("click", handleClick);
-  }, [playerX]);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [playerX, gameOver]);
 
+  // Game loop
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    let animationFrameId: number;
+    let lastBlockSpawn = Date.now();
+
+    const update = () => {
+      // Move bullets
+      setBullets((prev) =>
+        prev
+          .map((b) => ({ ...b, y: b.y - BULLET_SPEED }))
+          .filter((b) => b.y + BULLET_HEIGHT > 0)
+      );
+
+      // Move blocks
+      setBlocks((prev) =>
+        prev
+          .map((b) => ({ ...b, y: b.y + BLOCK_SPEED }))
+          .filter((b) => b.y < CANVAS_HEIGHT)
+      );
+
+      // Spawn blocks
+      if (Date.now() - lastBlockSpawn > BLOCK_SPAWN_INTERVAL) {
+        const x = Math.random() * (CANVAS_WIDTH - BLOCK_WIDTH);
+        setBlocks((prev) => [...prev, { x, y: -BLOCK_HEIGHT }]);
+        lastBlockSpawn = Date.now();
+      }
+
+      // Collision detection
+      setBullets((prevBullets) => {
+        const remainingBullets = [...prevBullets];
+        setBlocks((prevBlocks) => {
+          const remainingBlocks = [...prevBlocks];
+          remainingBullets.forEach((b, bi) => {
+            remainingBlocks.forEach((blk, bi2) => {
+              if (
+                b.x < blk.x + BLOCK_WIDTH &&
+                b.x + BULLET_WIDTH > blk.x &&
+                b.y < blk.y + BLOCK_HEIGHT &&
+                b.y + BULLET_HEIGHT > blk.y
+              ) {
+                // hit
+                remainingBullets.splice(bi, 1);
+                remainingBlocks.splice(bi2, 1);
+                setScore((s) => s + 1);
+              }
+            });
+          });
+          return remainingBlocks;
+        });
+        return remainingBullets;
+      });
+
+      // Check if any block reaches bottom
+      if (blocks.some((b) => b.y + BLOCK_HEIGHT >= CANVAS_HEIGHT)) {
+        setGameOver(true);
+      }
+
+      // Draw
+      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+
       // Draw player
       ctx.fillStyle = "#ff0";
-      ctx.fillRect(playerX, PLAYER_Y, PLAYER_WIDTH, PLAYER_HEIGHT);
+      ctx.fillRect(playerX, CANVAS_HEIGHT - PLAYER_HEIGHT, PLAYER_WIDTH, PLAYER_HEIGHT);
+
+      // Draw bullets
+      ctx.fillStyle = "#fff";
+      bullets.forEach((b) => ctx.fillRect(b.x, b.y, BULLET_WIDTH, BULLET_HEIGHT));
+
+      // Draw blocks
+      ctx.fillStyle = "#f00";
+      blocks.forEach((b) => ctx.fillRect(b.x, b.y, BLOCK_WIDTH, BLOCK_HEIGHT));
+
       // Draw score
       ctx.fillStyle = "#fff";
       ctx.font = "20px sans-serif";
       ctx.fillText(`Score: ${score}`, 10, 20);
-      requestAnimationFrame(draw);
+
+      if (!gameOver) {
+        animationFrameId = requestAnimationFrame(update);
+      } else {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+        ctx.fillStyle = "#fff";
+        ctx.font = "36px sans-serif";
+        ctx.fillText("Game Over", CANVAS_WIDTH / 2 - 80, CANVAS_HEIGHT / 2);
+        ctx.font = "24px sans-serif";
+        ctx.fillText(`Final Score: ${score}`, CANVAS_WIDTH / 2 - 80, CANVAS_HEIGHT / 2 + 40);
+      }
     };
-    draw();
-    return () => cancelAnimationFrame(0);
-  }, [playerX, score]);
+
+    animationFrameId = requestAnimationFrame(update);
+
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [playerX, bullets, blocks, score, gameOver]);
+
+  const restart = () => {
+    setScore(0);
+    setBullets([]);
+    setBlocks([]);
+    setGameOver(false);
+    setPlayerX((CANVAS_WIDTH - PLAYER_WIDTH) / 2);
+  };
 
   return (
     <div className="flex flex-col items-center">
       <canvas
         ref={canvasRef}
-        width={400}
-        height={600}
+        width={CANVAS_WIDTH}
+        height={CANVAS_HEIGHT}
         className="border border-gray-300 bg-blue-200"
       />
       <p className="mt-4 text-lg">Score: {score}</p>
+      {gameOver && (
+        <button
+          onClick={restart}
+          className="mt-4 px-4 py-2 bg-green-500 text-white rounded"
+        >
+          Restart
+        </button>
+      )}
     </div>
   );
 }
