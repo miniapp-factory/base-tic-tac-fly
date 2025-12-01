@@ -18,11 +18,17 @@ const BLOCK_HEIGHT = 20;
 const BLOCK_SPEED = 2;
 const BLOCK_SPAWN_INTERVAL = 1500;
 
+const ENEMY_WIDTH = 40;
+const ENEMY_HEIGHT = 20;
+const ENEMY_SPEED = 2;
+const ENEMY_SPAWN_INTERVAL = 2000;
+
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [playerX, setPlayerX] = useState((CANVAS_WIDTH - PLAYER_WIDTH) / 2);
   const [bullets, setBullets] = useState<{ x: number; y: number }[]>([]);
   const [blocks, setBlocks] = useState<{ x: number; y: number }[]>([]);
+  const [enemies, setEnemies] = useState<{ x: number; y: number }[]>([]);
   const [score, setScore] = useState(0);
   const [gameOver, setGameOver] = useState(false);
 
@@ -71,10 +77,26 @@ export default function Game() {
           .filter((b) => b.y < CANVAS_HEIGHT)
       );
 
+      // Move enemies
+      setEnemies((prev) =>
+        prev.map((e) => {
+          let newX = e.x + ENEMY_SPEED;
+          if (newX > CANVAS_WIDTH) newX = -ENEMY_WIDTH;
+          return { x: newX, y: e.y };
+        })
+      );
+
       // Spawn blocks
       if (Date.now() - lastBlockSpawn > BLOCK_SPAWN_INTERVAL) {
         const x = Math.random() * (CANVAS_WIDTH - BLOCK_WIDTH);
         setBlocks((prev) => [...prev, { x, y: -BLOCK_HEIGHT }]);
+        lastBlockSpawn = Date.now();
+      }
+
+      // Spawn enemies
+      if (Date.now() - lastBlockSpawn > ENEMY_SPAWN_INTERVAL) {
+        const x = Math.random() * (CANVAS_WIDTH - ENEMY_WIDTH);
+        setEnemies((prev) => [...prev, { x, y: -ENEMY_HEIGHT }]);
         lastBlockSpawn = Date.now();
       }
 
@@ -91,7 +113,7 @@ export default function Game() {
                 b.y < blk.y + BLOCK_HEIGHT &&
                 b.y + BULLET_HEIGHT > blk.y
               ) {
-                // hit
+                // hit block
                 remainingBullets.splice(bi, 1);
                 remainingBlocks.splice(bi2, 1);
                 setScore((s) => s + 1);
@@ -99,6 +121,25 @@ export default function Game() {
             });
           });
           return remainingBlocks;
+        });
+        setEnemies((prevEnemies) => {
+          const remainingEnemies = [...prevEnemies];
+          remainingBullets.forEach((b, bi) => {
+            remainingEnemies.forEach((enm, ei) => {
+              if (
+                b.x < enm.x + ENEMY_WIDTH &&
+                b.x + BULLET_WIDTH > enm.x &&
+                b.y < enm.y + ENEMY_HEIGHT &&
+                b.y + BULLET_HEIGHT > enm.y
+              ) {
+                // hit enemy
+                remainingBullets.splice(bi, 1);
+                remainingEnemies.splice(ei, 1);
+                setScore((s) => s + 1);
+              }
+            });
+          });
+          return remainingEnemies;
         });
         return remainingBullets;
       });
@@ -122,6 +163,10 @@ export default function Game() {
       // Draw blocks
       ctx.fillStyle = "#f00";
       blocks.forEach((b) => ctx.fillRect(b.x, b.y, BLOCK_WIDTH, BLOCK_HEIGHT));
+
+      // Draw enemies
+      ctx.fillStyle = "#0f0";
+      enemies.forEach((e) => ctx.fillRect(e.x, e.y, ENEMY_WIDTH, ENEMY_HEIGHT));
 
       // Draw score
       ctx.fillStyle = "#fff";
