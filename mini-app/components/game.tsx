@@ -207,6 +207,7 @@ export default function Game() {
         height={CANVAS_HEIGHT}
         className="border border-gray-300 bg-blue-200"
       />
+      <div className="absolute top-2 left-2 text-sm text-white bg-black bg-opacity-50 p-2 rounded">Use ←/→ to move, Space to shoot</div>
       <p className="mt-4 text-lg">Score: {score}</p>
       {gameOver && (
         <button
